@@ -1,0 +1,36 @@
+{# Reusable pagination control. Expects: page, total_pages, total_count,
+   and pagination_base_url (path + querystring, minus the page param, e.g.
+   "/bookings?status=confirmed&"). #}
+{% if total_pages > 1 %}
+<div class="d-flex justify-content-between align-items-center mt-3">
+  <div class="text-muted" style="font-size:0.8rem;">
+    Page {{ page }} of {{ total_pages }} · {{ total_count }} total
+  </div>
+  <div class="d-flex gap-1">
+    <a href="{{ pagination_base_url }}page={{ page - 1 if page > 1 else 1 }}"
+       class="btn btn-sm btn-light {{ 'disabled' if page <= 1 }}"><i class="bi bi-chevron-left"></i></a>
+
+    {% set window_start = [1, page - 2]|max %}
+    {% set window_end = [total_pages, page + 2]|min %}
+    {% if window_start > 1 %}
+      <a href="{{ pagination_base_url }}page=1" class="btn btn-sm btn-light">1</a>
+      {% if window_start > 2 %}<span class="btn btn-sm border-0" style="cursor:default;">…</span>{% endif %}
+    {% endif %}
+
+    {% for p in range(window_start, window_end + 1) %}
+      <a href="{{ pagination_base_url }}page={{ p }}"
+         class="btn btn-sm {{ 'btn-primary' if p == page else 'btn-light' }}">{{ p }}</a>
+    {% endfor %}
+
+    {% if window_end < total_pages %}
+      {% if window_end < total_pages - 1 %}<span class="btn btn-sm border-0" style="cursor:default;">…</span>{% endif %}
+      <a href="{{ pagination_base_url }}page={{ total_pages }}" class="btn btn-sm btn-light">{{ total_pages }}</a>
+    {% endif %}
+
+    <a href="{{ pagination_base_url }}page={{ page + 1 if page < total_pages else total_pages }}"
+       class="btn btn-sm btn-light {{ 'disabled' if page >= total_pages }}"><i class="bi bi-chevron-right"></i></a>
+  </div>
+</div>
+{% elif total_count is defined and total_count > 0 %}
+<div class="text-muted mt-3" style="font-size:0.8rem;">{{ total_count }} total</div>
+{% endif %}

@@ -1,0 +1,110 @@
+{% extends "base.html" %}
+{% block title %}Calendar - BookIt{% endblock %}
+{% block extra_head %}
+<link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.css" rel="stylesheet">
+<style>
+  #calendar { font-family: 'Inter', sans-serif; }
+  .fc {
+    --fc-border-color: var(--border);
+    --fc-page-bg-color: transparent;
+    --fc-neutral-bg-color: var(--surface-glass);
+    --fc-list-event-hover-bg-color: var(--surface-glass);
+    --fc-today-bg-color: rgba(184,69,31,0.09);
+    color: var(--ink-soft);
+  }
+  .fc .fc-toolbar-title { font-family: 'Fraunces', serif; font-size: 1.35rem; font-weight: 700; color: var(--ink); }
+  .fc .fc-button {
+    background: var(--surface-glass); border: 1px solid var(--border); color: var(--ink-soft);
+    box-shadow: none; text-transform: capitalize; font-weight: 500; font-size: 0.82rem;
+  }
+  .fc .fc-button:hover { background: var(--surface-glass-hover); color: var(--ink); }
+  .fc .fc-button-primary:not(:disabled).fc-button-active {
+    background: var(--gradient); border-color: transparent; color: #fff;
+  }
+  .fc-event { border: none; padding: 1px 4px; font-size: 0.78rem; border-radius: 4px; font-weight: 500; }
+  .fc-daygrid-day-number, .fc-col-header-cell-cushion { color: var(--ink-soft); font-size: 0.82rem; }
+  .fc-daygrid-day-number:hover, .fc-col-header-cell-cushion:hover { color: var(--ink); }
+  .fc-scrollgrid { border-color: var(--border) !important; }
+  .fc-theme-standard td, .fc-theme-standard th { border-color: var(--border) !important; }
+  .fc-daygrid-day.fc-day-today { background: rgba(184,69,31,0.09) !important; }
+  .fc-daygrid-day-frame, .fc-timegrid-slot-lane { cursor: pointer; }
+  .fc-daygrid-day-frame:hover { background: var(--surface-glass); }
+</style>
+{% endblock %}
+{% block content %}
+<h1 class="page-title">Calendar</h1>
+<p class="page-subtitle">All bookings across every resource, color-coded by status. Click any day to start a new booking.</p>
+
+<div class="d-flex flex-wrap gap-3 mb-3" style="font-size:0.8rem; color: var(--muted);">
+  <span><span class="d-inline-block" style="background:#147D6F; width:7px;height:7px;border-radius:50%;"></span> Confirmed</span>
+  <span><span class="d-inline-block" style="background:#6D4AA6; width:7px;height:7px;border-radius:50%;"></span> Checked in</span>
+  <span><span class="d-inline-block" style="background:#2A5C8A; width:7px;height:7px;border-radius:50%;"></span> Completed</span>
+  <span><span class="d-inline-block" style="background:#74695D; width:7px;height:7px;border-radius:50%;"></span> Cancelled</span>
+  <span><span class="d-inline-block" style="background:#B23A2E; width:7px;height:7px;border-radius:50%;"></span> No-show</span>
+</div>
+
+<div class="card p-3 position-relative">
+  <div id="calendarSkeleton">
+    <div class="skeleton skeleton-line" style="width:220px; height:1.6rem; margin-bottom:1rem;"></div>
+    <div class="skeleton skeleton-block"></div>
+  </div>
+  <div id="calendar" style="display:none;"></div>
+</div>
+{% endblock %}
+{% block extra_scripts %}
+<script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  const calendarEl = document.getElementById('calendar');
+  const skeletonEl = document.getElementById('calendarSkeleton');
+
+  const calendar = new FullCalendar.Calendar(calendarEl, {
+    initialView: 'dayGridMonth',
+    headerToolbar: {
+      left: 'prev,next today',
+      center: 'title',
+      right: 'dayGridMonth,timeGridWeek,timeGridDay'
+    },
+    events: '/calendar/events',
+    loading: function(isLoading) {
+      // Only show the skeleton on the very first load -- subsequent
+      // view/date changes shouldn't hide the whole calendar again.
+      if (!isLoading) {
+        skeletonEl.style.display = 'none';
+        calendarEl.style.display = '';
+      }
+    },
+    eventClick: function(info) {
+      const props = info.event.extendedProps;
+      const statusVariant = {
+        confirmed: 'info', checked_in: 'success', completed: 'info',
+        cancelled: 'warning', no_show: 'danger'
+      }[props.status] || 'info';
+      showToast({
+        title: props.resource,
+        body: `${props.customer} · ${props.status.replace('_',' ')} · Ref ${props.reference.slice(0,8)}`,
+        variant: statusVariant,
+      });
+    },
+    dateClick: function(info) {
+      // Click a day (month view) or a time slot (week/day view) to jump
+      // straight to Bookings with that date -- and, if a specific time
+      // was clicked, that time too -- pre-filled and the New Booking
+      // modal already open.
+      const params = new URLSearchParams();
+      params.set('open_new', '1');
+      params.set('date', info.dateStr.slice(0, 10));
+      if (!info.allDay) {
+        // info.dateStr for timeGrid clicks is a full ISO datetime;
+        // carry the clicked hour/minute through as the start time.
+        params.set('time', info.dateStr.slice(11, 16));
+      }
+      window.location.href = `/bookings?${params.toString()}`;
+    },
+    selectable: true,
+    height: 'auto'
+  });
+  calendar.render();
+});
+</script>
+{% endblock %}

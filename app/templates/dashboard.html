@@ -1,0 +1,238 @@
+{% extends "base.html" %}
+{% block title %}Dashboard - BookIt{% endblock %}
+{% block content %}
+
+{% if summary.view == "business" %}
+<div class="d-flex justify-content-between align-items-end mb-1">
+  <div>
+    <h1 class="page-title">Good to see you, {{ user.full_name.split(' ')[0] }}</h1>
+    <p class="page-subtitle mb-0">Here's what's happening across your resources today.</p>
+  </div>
+  <a href="/bookings" class="btn btn-primary"><i class="bi bi-plus-lg"></i> New booking</a>
+</div>
+
+<div class="row g-3 mb-4 mt-2">
+  <div class="col-md-3 col-sm-6">
+    <div class="card metric-card h-100">
+      <div class="d-flex justify-content-between align-items-start">
+        <div class="metric-label">Occupancy today</div>
+        <div class="metric-icon" style="background:var(--teal-tint); color:var(--teal);"><i class="bi bi-pie-chart"></i></div>
+      </div>
+      <div class="metric-value">{{ summary.occupancy_rate }}%</div>
+    </div>
+  </div>
+  <div class="col-md-3 col-sm-6">
+    <div class="card metric-card h-100">
+      <div class="d-flex justify-content-between align-items-start">
+        <div class="metric-label">Revenue · 30d</div>
+        <div class="metric-icon" style="background:var(--amber-tint); color:var(--amber);"><i class="bi bi-cash-coin"></i></div>
+      </div>
+      <div class="metric-value">${{ "%.0f"|format(summary.total_revenue_30d) }}</div>
+    </div>
+  </div>
+  <div class="col-md-3 col-sm-6">
+    <div class="card metric-card h-100">
+      <div class="d-flex justify-content-between align-items-start">
+        <div class="metric-label">Active bookings</div>
+        <div class="metric-icon" style="background:var(--violet-tint); color:var(--violet);"><i class="bi bi-journal-check"></i></div>
+      </div>
+      <div class="metric-value">{{ summary.active_bookings }}</div>
+    </div>
+  </div>
+  <div class="col-md-3 col-sm-6">
+    <div class="card metric-card h-100">
+      <div class="d-flex justify-content-between align-items-start">
+        <div class="metric-label">Active resources</div>
+        <div class="metric-icon" style="background:var(--slate-tint); color:var(--slate);"><i class="bi bi-door-open"></i></div>
+      </div>
+      <div class="metric-value">{{ summary.total_resources }}</div>
+    </div>
+  </div>
+</div>
+
+<div class="card mb-4">
+  <div class="card-header">
+    <i class="bi bi-graph-up me-1"></i> Revenue &amp; bookings — last 14 days
+  </div>
+  <div class="card-body">
+    <canvas id="trendChart" height="70"></canvas>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-header d-flex justify-content-between align-items-center">
+    <span><i class="bi bi-clock-history me-1"></i> Upcoming bookings — next 7 days</span>
+    <a href="/bookings" class="text-decoration-none" style="font-size:0.8rem; font-weight:500;">View all <i class="bi bi-arrow-right"></i></a>
+  </div>
+  <div class="table-responsive">
+    <table class="table mb-0">
+      <thead>
+        <tr>
+          <th>Reference</th><th>Resource</th><th>Customer</th><th>Start</th><th>End</th><th>Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for b in summary.upcoming_bookings %}
+        <tr>
+          <td class="mono">{{ b.reference[:8] }}</td>
+          <td class="fw-medium" style="color:var(--ink);">{{ b.resource.name }}</td>
+          <td>{{ b.customer.full_name }}</td>
+          <td class="mono">{{ b.start_time.strftime('%b %d, %H:%M') }}</td>
+          <td class="mono">{{ b.end_time.strftime('%b %d, %H:%M') }}</td>
+          <td><span class="chip chip-{{ b.status.value }}"><span class="chip-dot"></span>{{ b.status.value.replace('_',' ') }}</span></td>
+        </tr>
+        {% else %}
+        <tr><td colspan="6" class="p-0">
+          <div class="empty-state">
+            <i class="bi bi-calendar2-check"></i>
+            <div class="empty-state-title">No upcoming bookings</div>
+            <div class="empty-state-sub">New reservations in the next 7 days will show up here.</div>
+          </div>
+        </td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{% else %}
+{# ---------- Customer dashboard: personal, no business metrics ---------- #}
+<div class="d-flex justify-content-between align-items-end mb-1">
+  <div>
+    <h1 class="page-title">Hey, {{ user.full_name.split(' ')[0] }}</h1>
+    <p class="page-subtitle mb-0">Here's what's coming up for you.</p>
+  </div>
+  <a href="/bookings" class="btn btn-primary"><i class="bi bi-plus-lg"></i> New booking</a>
+</div>
+
+<div class="row g-3 mb-4 mt-2">
+  <div class="col-md-6">
+    <div class="card metric-card h-100">
+      <div class="d-flex justify-content-between align-items-start">
+        <div class="metric-label">{% if summary.next_booking %}Your next booking{% else %}Next booking{% endif %}</div>
+        <div class="metric-icon" style="background:var(--teal-tint); color:var(--teal);"><i class="bi bi-calendar-event"></i></div>
+      </div>
+      {% if summary.next_booking %}
+        <div class="fw-semibold mt-1" style="font-family:var(--font-display); font-size:1.3rem;">{{ summary.next_booking.resource.name }}</div>
+        <div class="text-muted mono mt-1" style="font-size:0.85rem;">{{ summary.next_booking.start_time.strftime('%b %d, %H:%M') }} – {{ summary.next_booking.end_time.strftime('%H:%M') }}</div>
+      {% else %}
+        <div class="text-muted mt-2" style="font-size:0.88rem;">Nothing booked yet — find a resource and reserve a slot.</div>
+      {% endif %}
+    </div>
+  </div>
+  <div class="col-md-3 col-sm-6">
+    <div class="card metric-card h-100">
+      <div class="d-flex justify-content-between align-items-start">
+        <div class="metric-label">Active bookings</div>
+        <div class="metric-icon" style="background:var(--violet-tint); color:var(--violet);"><i class="bi bi-journal-check"></i></div>
+      </div>
+      <div class="metric-value">{{ summary.active_bookings }}</div>
+    </div>
+  </div>
+  <div class="col-md-3 col-sm-6">
+    <div class="card metric-card h-100">
+      <div class="d-flex justify-content-between align-items-start">
+        <div class="metric-label">Completed stays</div>
+        <div class="metric-icon" style="background:var(--slate-tint); color:var(--slate);"><i class="bi bi-check2-circle"></i></div>
+      </div>
+      <div class="metric-value">{{ summary.completed_bookings }}</div>
+    </div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-header d-flex justify-content-between align-items-center">
+    <span><i class="bi bi-clock-history me-1"></i> Your upcoming bookings</span>
+    <a href="/bookings" class="text-decoration-none" style="font-size:0.8rem; font-weight:500;">View all <i class="bi bi-arrow-right"></i></a>
+  </div>
+  <div class="table-responsive">
+    <table class="table mb-0">
+      <thead>
+        <tr><th>Reference</th><th>Resource</th><th>Start</th><th>End</th><th>Status</th></tr>
+      </thead>
+      <tbody>
+        {% for b in summary.upcoming_bookings %}
+        <tr>
+          <td class="mono">{{ b.reference[:8] }}</td>
+          <td class="fw-medium" style="color:var(--ink);">{{ b.resource.name }}</td>
+          <td class="mono">{{ b.start_time.strftime('%b %d, %H:%M') }}</td>
+          <td class="mono">{{ b.end_time.strftime('%b %d, %H:%M') }}</td>
+          <td><span class="chip chip-{{ b.status.value }}"><span class="chip-dot"></span>{{ b.status.value.replace('_',' ') }}</span></td>
+        </tr>
+        {% else %}
+        <tr><td colspan="5" class="p-0">
+          <div class="empty-state">
+            <i class="bi bi-calendar2-check"></i>
+            <div class="empty-state-title">No upcoming bookings</div>
+            <div class="empty-state-sub">Book a room, desk, or service to see it here.</div>
+          </div>
+        </td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
+
+{% endblock %}
+{% block extra_scripts %}
+{% if summary.view == "business" %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+<script>
+  const trendData = {{ summary.trend | tojson }};
+  const ctx = document.getElementById('trendChart');
+  if (ctx && trendData.labels.length) {
+    new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: trendData.labels,
+        datasets: [
+          {
+            type: 'line',
+            label: 'Revenue ($)',
+            data: trendData.revenue,
+            borderColor: '#B8451F',
+            backgroundColor: 'rgba(184,69,31,0.08)',
+            borderWidth: 2,
+            tension: 0.35,
+            pointRadius: 2,
+            pointBackgroundColor: '#B8451F',
+            yAxisID: 'y',
+            fill: true,
+          },
+          {
+            type: 'bar',
+            label: 'Bookings',
+            data: trendData.counts,
+            backgroundColor: 'rgba(20,125,111,0.35)',
+            borderRadius: 4,
+            barPercentage: 0.5,
+            yAxisID: 'y1',
+          },
+        ],
+      },
+      options: {
+        responsive: true,
+        interaction: { mode: 'index', intersect: false },
+        plugins: {
+          legend: { position: 'top', labels: { color: '#4A4038', boxWidth: 12, font: { size: 11 } } },
+        },
+        scales: {
+          x: { ticks: { color: '#7C7166', font: { size: 10 } }, grid: { color: 'rgba(38,32,24,0.06)' } },
+          y: {
+            position: 'left', beginAtZero: true,
+            ticks: { color: '#7C7166', font: { size: 10 }, callback: v => '$' + v },
+            grid: { color: 'rgba(38,32,24,0.06)' },
+          },
+          y1: {
+            position: 'right', beginAtZero: true,
+            ticks: { color: '#7C7166', font: { size: 10 }, precision: 0 },
+            grid: { display: false },
+          },
+        },
+      },
+    });
+  }
+</script>
+{% endif %}
+{% endblock %}

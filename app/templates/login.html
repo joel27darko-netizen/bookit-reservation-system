@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% block title %}Sign in - BookIt{% endblock %}
+{% block bare_content %}
+<div class="auth-shell">
+  <div class="auth-visual">
+    <div class="d-flex align-items-center gap-2">
+      <span class="dot" style="width:11px;height:11px;border-radius:50%;background:#B8451F;box-shadow:0 0 14px rgba(184,69,31,0.55);"></span>
+      <span class="fw-bold" style="font-family:'Fraunces',serif;font-size:1.25rem; color:#fff;">BookIt</span>
+    </div>
+    <div class="auth-visual-quote">
+      Every room, desk, and slot — booked once, never twice.
+      <div class="mt-4" style="font-size:0.85rem; color:#C9BCA9; font-family:'Inter',sans-serif; font-weight:400;">
+        A real-time reservation engine for hotels, coworking spaces, clinics, and meeting rooms.
+      </div>
+    </div>
+    <div style="font-size:0.78rem; color:#8A7D6C;">© 2026 BookIt Reservation Systems</div>
+  </div>
+
+  <div class="auth-form-side">
+    <div class="auth-card">
+      <h1 class="page-title mb-1">Welcome back</h1>
+      <p class="page-subtitle mb-4">Sign in to manage your bookings</p>
+
+      {% if error %}<div class="alert alert-danger py-2 px-3 mb-3">{{ error }}</div>{% endif %}
+
+      <form method="post" action="/login">
+        <div class="mb-3">
+          <label class="form-label">Email address</label>
+          <input type="email" class="form-control" name="email" placeholder="you@example.com" required autofocus>
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Password</label>
+          <input type="password" class="form-control" name="password" placeholder="••••••••" required>
+        </div>
+        <button type="submit" class="btn btn-primary w-100 mt-1" data-loading-text="Signing in…">Sign in</button>
+      </form>
+
+      <p class="text-center mt-3 mb-0" style="font-size:0.85rem; color:var(--muted);">No account? <a href="/register">Create one</a></p>
+
+      <div class="auth-demo-box">
+        <div class="fw-semibold mb-1" style="color:var(--ink-soft);">Demo accounts</div>
+        <div><code>admin@bookit.com</code> / admin123</div>
+        <div><code>staff@bookit.com</code> / staff123</div>
+        <div><code>customer@bookit.com</code> / customer123</div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

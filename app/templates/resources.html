@@ -1,0 +1,105 @@
+{% extends "base.html" %}
+{% block title %}Resources - BookIt{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-end mb-1">
+  <div>
+    <h1 class="page-title">Resources</h1>
+    <p class="page-subtitle mb-0">Rooms, desks, equipment, and services available to book.</p>
+  </div>
+  {% if user.role.value in ["admin", "staff"] %}
+  <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createResourceModal">
+    <i class="bi bi-plus-lg"></i> Add resource
+  </button>
+  {% endif %}
+</div>
+
+<div class="mb-4 mt-3">
+  <a href="/resources" class="type-filter-pill {{ 'active' if not active_type }}">All</a>
+  {% for t in types %}
+  <a href="/resources?type={{ t.value }}" class="type-filter-pill {{ 'active' if active_type == t.value }}">{{ t.value|capitalize }}</a>
+  {% endfor %}
+</div>
+
+<div class="row g-3">
+  {% for r in resources %}
+  {% set type_colors = {"room": ("var(--teal-tint)","var(--teal)"), "table": ("var(--amber-tint)","var(--amber)"), "equipment": ("var(--violet-tint)","var(--violet)"), "service": ("var(--slate-tint)","var(--slate)")} %}
+  <div class="col-md-4 col-lg-3">
+    <div class="card resource-card h-100">
+      <div class="card-body d-flex flex-column">
+        <div class="d-flex justify-content-between align-items-start mb-2">
+          <h5 class="mb-0 fw-semibold" style="font-size:1rem;">{{ r.name }}</h5>
+          <span class="resource-type-pill" style="background:{{ type_colors[r.type.value][0] }}; color:{{ type_colors[r.type.value][1] }};">{{ r.type.value }}</span>
+        </div>
+        <div class="text-muted mb-3" style="font-size:0.83rem;">
+          <div class="mb-1"><i class="bi bi-geo-alt me-1"></i>{{ r.location or "No location set" }}</div>
+          <div class="mb-1"><i class="bi bi-people me-1"></i>Capacity {{ r.capacity }}</div>
+          <div><i class="bi bi-clock me-1"></i>{{ r.open_time }} – {{ r.close_time }}</div>
+        </div>
+        <div class="price-tag mb-3" style="font-size:1.05rem;">${{ "%.2f"|format(r.price_per_hour) }}<span class="text-muted" style="font-size:0.75rem;">/hr</span></div>
+        <div class="mt-auto">
+          <a href="/bookings?resource_id={{ r.id }}" class="btn btn-sm btn-outline-primary w-100 mb-2">
+            <i class="bi bi-calendar-plus"></i> Book / view
+          </a>
+          {% if user.role.value in ["admin", "staff"] %}
+          <form method="post" action="/resources/{{ r.id }}/deactivate" data-confirm="Deactivate this resource? Existing bookings are kept.">
+            <button class="btn btn-sm btn-outline-danger w-100" data-loading-text="Deactivating…"><i class="bi bi-trash"></i> Deactivate</button>
+          </form>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+  {% else %}
+  <div class="col-12">
+    <div class="card"><div class="empty-state">
+      <i class="bi bi-door-closed"></i>
+      <div class="empty-state-title">No resources yet</div>
+      <div class="empty-state-sub">{% if user.role.value in ["admin","staff"] %}Add your first bookable room, desk, or service to get started.{% else %}Check back soon — nothing's available in this category yet.{% endif %}</div>
+    </div></div>
+  </div>
+  {% endfor %}
+</div>
+
+<!-- Create Resource Modal -->
+<div class="modal fade" id="createResourceModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <form method="post" action="/resources/create" class="js-hours-form">
+        <div class="modal-header">
+          <h5 class="modal-title">Add resource</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <div class="mb-3"><label class="form-label">Name</label><input class="form-control" name="name" placeholder="e.g. Conference Room B" required></div>
+          <div class="mb-3">
+            <label class="form-label">Type</label>
+            <select class="form-select" name="type" required>
+              <option value="room">Room</option>
+              <option value="table">Table / Desk</option>
+              <option value="equipment">Equipment</option>
+              <option value="service">Service</option>
+            </select>
+          </div>
+          <div class="mb-3"><label class="form-label">Location</label><input class="form-control" name="location" placeholder="e.g. 3rd Floor, West Wing"></div>
+          <div class="row">
+            <div class="col-6 mb-3"><label class="form-label">Capacity</label><input type="number" class="form-control" name="capacity" value="1" min="1" required></div>
+            <div class="col-6 mb-3"><label class="form-label">Price / hour ($)</label><input type="number" step="0.01" min="0" class="form-control" name="price_per_hour" value="0"></div>
+          </div>
+          <div class="row">
+            <div class="col-6 mb-1"><label class="form-label">Opens</label><input type="time" class="form-control" name="open_time" value="08:00"></div>
+            <div class="col-6 mb-1"><label class="form-label">Closes</label><input type="time" class="form-control" name="close_time" value="20:00"></div>
+          </div>
+          <div class="field-error mb-2"><i class="bi bi-exclamation-circle"></i> <span></span></div>
+          <div class="mb-1"><label class="form-label">Description</label><textarea class="form-control" name="description" rows="2" placeholder="Optional notes visible to staff"></textarea></div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-primary" data-loading-text="Creating…">Create resource</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<script src="/static/js/validation.js"></script>
+{% endblock %}

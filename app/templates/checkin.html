@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block title %}Check-in - BookIt{% endblock %}
+{% block content %}
+<h1 class="page-title">QR check-in</h1>
+<p class="page-subtitle">Scan or paste a guest's booking code to check them in.</p>
+
+<div class="row justify-content-center mt-2">
+  <div class="col-md-6 col-lg-5">
+    <div class="card">
+      <div class="card-body">
+        <div class="d-flex align-items-center gap-2 mb-3" style="color: var(--muted); font-size: 0.82rem;">
+          <i class="bi bi-camera" style="font-size:1.4rem; color:var(--teal);"></i>
+          <span>This simulates a camera scan — paste the QR payload from a booking's check-in page, formatted as <code>BOOKIT:&lt;reference&gt;</code>.</span>
+        </div>
+        <form method="post" action="/checkin/scan">
+          <div class="mb-3">
+            <label class="form-label">QR payload or booking reference</label>
+            <input type="text" class="form-control mono" name="payload" placeholder="BOOKIT:xxxxxxxx-xxxx-…" required autofocus>
+          </div>
+          <button type="submit" class="btn btn-primary w-100" data-loading-text="Checking in…"><i class="bi bi-check2-circle"></i> Check in guest</button>
+        </form>
+
+        {% if result %}
+          <hr class="my-3">
+          {% if result.success %}
+            <div class="alert alert-success d-flex gap-2 align-items-start mb-0">
+              <i class="bi bi-check-circle-fill mt-1"></i>
+              <div>
+                <div class="fw-semibold">Checked in</div>
+                <div style="font-size:0.85rem;">{{ result.booking.resource.name }} — {{ result.booking.customer.full_name }}<br>
+                {{ result.booking.start_time.strftime('%b %d, %H:%M') }} – {{ result.booking.end_time.strftime('%H:%M') }}</div>
+              </div>
+            </div>
+          {% else %}
+            <div class="alert alert-danger d-flex gap-2 align-items-start mb-0">
+              <i class="bi bi-x-circle-fill mt-1"></i>
+              <div><div class="fw-semibold">Couldn't check in</div><div style="font-size:0.85rem;">{{ result.message }}</div></div>
+            </div>
+          {% endif %}
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

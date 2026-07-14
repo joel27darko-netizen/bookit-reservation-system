@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+{% block title %}Profile - BookIt{% endblock %}
+{% block content %}
+<h1 class="page-title">Your profile</h1>
+<p class="page-subtitle">Manage your account details and password.</p>
+
+{% if error %}<div class="alert alert-danger mb-3">{{ error }}</div>{% endif %}
+{% if success %}<div class="alert alert-success mb-3">{{ success }}</div>{% endif %}
+
+<div class="row g-3">
+  <div class="col-md-6">
+    <div class="card h-100">
+      <div class="card-header">Account details</div>
+      <div class="card-body">
+        <form method="post" action="/profile/update">
+          <div class="mb-3">
+            <label class="form-label">Full name</label>
+            <input class="form-control" name="full_name" value="{{ user.full_name }}" required>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Email address</label>
+            <input type="email" class="form-control" name="email" value="{{ user.email }}" required>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Role</label>
+            <div><span class="chip chip-role"><span class="chip-dot" style="background:var(--teal);"></span>{{ user.role.value }}</span></div>
+          </div>
+          <button type="submit" class="btn btn-primary" data-loading-text="Saving…">Save changes</button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-md-6">
+    <div class="card h-100">
+      <div class="card-header">Change password</div>
+      <div class="card-body">
+        <form method="post" action="/profile/password" id="passwordForm">
+          <div class="mb-3">
+            <label class="form-label">Current password</label>
+            <input type="password" class="form-control" name="current_password" required>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">New password</label>
+            <input type="password" class="form-control" name="new_password" id="newPassword" minlength="6" required>
+          </div>
+          <div class="mb-1">
+            <label class="form-label">Confirm new password</label>
+            <input type="password" class="form-control" name="confirm_password" id="confirmPassword" minlength="6" required>
+          </div>
+          <div class="field-error" id="passwordMatchError"><i class="bi bi-exclamation-circle"></i> <span></span></div>
+          <button type="submit" class="btn btn-primary mt-2" data-loading-text="Updating…">Update password</button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+  const form = document.getElementById("passwordForm");
+  const newPw = document.getElementById("newPassword");
+  const confirmPw = document.getElementById("confirmPassword");
+  const errorEl = document.getElementById("passwordMatchError");
+
+  function validate() {
+    if (confirmPw.value && newPw.value !== confirmPw.value) {
+      confirmPw.setCustomValidity("Passwords don't match");
+      confirmPw.classList.add("is-invalid");
+      errorEl.querySelector("span").textContent = "Passwords don't match.";
+      errorEl.classList.add("show");
+      return false;
+    }
+    confirmPw.setCustomValidity("");
+    confirmPw.classList.remove("is-invalid");
+    errorEl.classList.remove("show");
+    return true;
+  }
+  newPw.addEventListener("input", validate);
+  confirmPw.addEventListener("input", validate);
+  form.addEventListener("submit", function (e) { if (!validate()) e.preventDefault(); });
+});
+</script>
+{% endblock %}

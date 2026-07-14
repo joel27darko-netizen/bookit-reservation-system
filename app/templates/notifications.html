@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block title %}Notifications - BookIt{% endblock %}
+{% block content %}
+<h1 class="page-title">Notification outbox</h1>
+<p class="page-subtitle">Simulated emails and texts — stands in for a real provider like SES or Twilio.</p>
+
+<div class="table-card mt-3">
+  {% for msg in outbox %}
+  <div class="d-flex gap-3 p-3 {{ 'border-bottom' if not loop.last }}" style="border-color: var(--border-soft) !important;">
+    <div class="metric-icon flex-shrink-0" style="background:{{ 'var(--teal-tint)' if msg.channel=='email' else 'var(--amber-tint)' }}; color:{{ 'var(--teal)' if msg.channel=='email' else 'var(--amber)' }};">
+      <i class="bi {{ 'bi-envelope' if msg.channel == 'email' else 'bi-chat-dots' }}"></i>
+    </div>
+    <div class="flex-grow-1">
+      <div class="d-flex justify-content-between">
+        <span class="fw-semibold" style="font-size:0.88rem;">{{ msg.subject or "SMS message" }}</span>
+        <span class="text-muted mono" style="font-size:0.72rem;">{{ msg.sent_at }}</span>
+      </div>
+      <div class="text-muted mb-1" style="font-size:0.8rem;">To {{ msg.to }}</div>
+      <div style="font-size:0.82rem; color: var(--ink-soft); white-space: pre-wrap;">{{ msg.body }}</div>
+    </div>
+  </div>
+  {% else %}
+  <div class="empty-state">
+    <i class="bi bi-bell-slash"></i>
+    <div class="empty-state-title">No notifications sent yet</div>
+    <div class="empty-state-sub">Confirmations and cancellations will appear here as they go out.</div>
+  </div>
+  {% endfor %}
+</div>
+{% endblock %}

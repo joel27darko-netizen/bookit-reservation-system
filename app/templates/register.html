@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block title %}Create account - BookIt{% endblock %}
+{% block bare_content %}
+<div class="auth-shell">
+  <div class="auth-visual">
+    <div class="d-flex align-items-center gap-2">
+      <span class="dot" style="width:11px;height:11px;border-radius:50%;background:#B8451F;box-shadow:0 0 14px rgba(184,69,31,0.55);"></span>
+      <span class="fw-bold" style="font-family:'Fraunces',serif;font-size:1.25rem; color:#fff;">BookIt</span>
+    </div>
+    <div class="auth-visual-quote">
+      Real-time availability, zero double bookings.
+      <div class="mt-4" style="font-size:0.85rem; color:#C9BCA9; font-family:'Inter',sans-serif; font-weight:400;">
+        Create an account to start booking rooms, desks, and services in seconds.
+      </div>
+    </div>
+    <div style="font-size:0.78rem; color:#8A7D6C;">© 2026 BookIt Reservation Systems</div>
+  </div>
+
+  <div class="auth-form-side">
+    <div class="auth-card">
+      <h1 class="page-title mb-1">Create your account</h1>
+      <p class="page-subtitle mb-4">Takes less than a minute</p>
+
+      {% if error %}<div class="alert alert-danger py-2 px-3 mb-3">{{ error }}</div>{% endif %}
+
+      <form method="post" action="/register">
+        <div class="mb-3">
+          <label class="form-label">Full name</label>
+          <input type="text" class="form-control" name="full_name" placeholder="Jordan Rivera" required autofocus>
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Email address</label>
+          <input type="email" class="form-control" name="email" placeholder="you@example.com" required>
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Password</label>
+          <input type="password" class="form-control" name="password" placeholder="At least 6 characters" minlength="6" required>
+        </div>
+        <button type="submit" class="btn btn-primary w-100 mt-1" data-loading-text="Creating account…">Create account</button>
+      </form>
+
+      <p class="text-center mt-3 mb-0" style="font-size:0.85rem; color:var(--muted);">Already have an account? <a href="/login">Sign in</a></p>
+    </div>
+  </div>
+</div>
+{% endblock %}
