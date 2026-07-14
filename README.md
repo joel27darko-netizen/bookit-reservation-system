@@ -1,41 +1,99 @@
 # BookIt
 
-A booking and reservation system I built to work for pretty much any business that manages time slots and physical (or semi-physical) resources — hotel rooms, coworking desks, clinic equipment, meeting rooms, whatever. Instead of building something narrowly tied to "just hotels" or "just clinics," I focused on the actual hard problem underneath all of them: making sure two people can never book the same thing at the same time.
+**A real-time booking and reservation engine built to solve the one problem every scheduling system has to get right: never letting two people book the same thing at the same time.**
 
-It's built with FastAPI on the backend, server-rendered HTML on the frontend (Jinja2 + Bootstrap, no separate JS framework), and it's got a real test suite behind it — not just something that looks nice in a demo.
+Built with FastAPI, SQLAlchemy, and a clean layered architecture — designed to work equally well for hotels, coworking spaces, clinics, or meeting rooms, because the hard part (conflict-free scheduling, role-based access, auditability) is the same problem underneath all of them.
 
-## Why I built it this way
+![Python](https://img.shields.io/badge/python-3.11+-blue)
+![FastAPI](https://img.shields.io/badge/FastAPI-0.111-teal)
+![Tests](https://img.shields.io/badge/tests-42%20passing-brightgreen)
+![License](https://img.shields.io/badge/license-MIT-lightgrey)
 
-I wanted to actually practice a clean backend architecture instead of just throwing everything into one big file. So the app is split into layers:
+---
 
-- **Routers** just handle the web request/response — they don't know anything about business rules
-- **Services** hold all the actual logic — this is where the booking conflict detection lives, where prices get calculated, where the rules about who can cancel what get enforced
-- **Repositories** are the only part of the app that talk to the database
-- **Models** are just the shape of the data
+## The problem this actually solves
 
-It felt like overkill at first for a project this size, but it paid off almost immediately — when I found a bug where customers could see other customers' bookings, I only had to fix it in one place (the service layer), not hunt through a dozen route handlers.
+Booking systems look simple until two people try to reserve the same room at the same time, or a customer cancels ten seconds before their appointment, or a "logged in" user turns out to be able to see data that isn't theirs. This project treats those as first-class problems, not edge cases bolted on later:
 
-## What it actually does
+- **Conflict detection runs twice** — once client-side for instant feedback, and again authoritatively at the database layer right before commit, so a race between two simultaneous requests can't create a double-booking
+- **Role-based access control** isn't `if role == "admin"` scattered through route handlers — it's a single reusable dependency (`require_roles(...)`) enforced consistently across every protected endpoint
+- **Data scoping is enforced at the query level**, not just the UI level — a customer's dashboard and calendar are filtered server-side by `customer_id`, so there's no code path where one customer's bookings leak into another's view
+- **Every mutation is audited** — booking creation, cancellation, rescheduling, resource edits, and role changes all write to an immutable audit log
 
-- Three roles — **customer**, **staff**, **admin** — each seeing a different version of the app depending on what they're allowed to do
-- Real-time availability checking, so you can't accidentally double-book a room
-- Booking creation, rescheduling, and cancellation, each with their own rules (like a minimum notice period before you can cancel)
-- A calendar view where you can literally click a day (or a specific time slot) and it takes you straight into a pre-filled booking form
-- QR code check-in — every booking gets a QR code, and there's a simple scanner page for staff to check guests in
-- CSV and PDF exports for reports (bookings, occupancy, revenue)
-- An audit log tracking who did what
-- A dashboard that shows different things depending on who's looking at it — staff and admins see revenue and occupancy, customers just see their own upcoming bookings (nobody else's business is anybody else's business)
+## Architecture
 
-## Getting it running
+Strict separation of concerns, each layer depending only on the one below it:
+
+```
+Routers      → HTTP in, HTTP out. No business logic.
+Services     → All business rules live here (the booking engine, pricing, RBAC, audit).
+Repositories → Raw database queries. Nothing else.
+Models       → Data shape only.
+```
+
+```
+app/
+├── main.py                    FastAPI app, security headers, global error handling
+├── config.py                  Environment-driven settings (pydantic-settings)
+├── database.py                SQLAlchemy engine/session
+├── models/                    User, Resource, Booking, AuditLog
+├── schemas/                   Pydantic request/response validation
+├── core/
+│   ├── security.py              JWT + bcrypt password hashing
+│   ├── deps.py                  get_current_user, require_roles() RBAC guard
+│   └── rate_limit.py            Brute-force login protection
+├── repositories/               Paginated + unpaginated query variants
+├── services/
+│   ├── booking_service.py        ← the booking engine: availability, conflicts,
+│   │                                pricing, reschedule/cancel rules
+│   ├── dashboard_service.py      Role-scoped metrics + calendar feed
+│   ├── report_service.py         CSV/PDF generation
+│   ├── qr_service.py             QR generation/decoding
+│   ├── notification_service.py   Simulated email/SMS outbox
+│   └── audit_service.py          Immutable action log
+├── routers/                    Thin endpoints, one file per feature
+├── templates/                  Jinja2 + Bootstrap 5, zero client-side framework
+└── static/                     CSS + vanilla JS
+tests/                          42 tests, isolated in-memory database per run
+alembic/                        Schema migrations
+```
+
+This isn't architecture for architecture's sake — it paid for itself directly. A real data-leak bug (customers could see other customers' bookings on the dashboard) was fixed in exactly one file, because the scoping logic lived in a single service method rather than being duplicated across route handlers.
+
+## The conflict-detection algorithm
+
+```python
+existing.start_time < new.end_time AND existing.end_time > new.start_time
+```
+
+The classic interval-overlap check — but the interesting engineering decision isn't the formula, it's **where it's enforced**. The UI checks availability before submission purely for user feedback. The service layer re-checks it again, inside the same transaction that creates the booking, which is what actually closes the race condition between two concurrent requests. Client-side validation is a UX nicety; server-side validation is the only one that's actually a guarantee.
+
+## Features
+
+| | |
+|---|---|
+| **Auth** | JWT in httpOnly cookies, bcrypt hashing, rate-limited login/registration |
+| **RBAC** | Customer / Staff / Admin, each with a genuinely different view of the app |
+| **Booking engine** | Real-time availability, conflict detection, reschedule, cancellation with a configurable notice window |
+| **Calendar** | FullCalendar.js month/week/day views — click any day or time slot to start a pre-filled booking |
+| **Check-in** | Per-booking QR codes with a working scan-and-check-in flow |
+| **Reporting** | CSV + PDF export for bookings, occupancy, and revenue |
+| **Dashboard** | Role-scoped — staff/admin see revenue, occupancy, and a 14-day trend chart; customers see only their own bookings |
+| **Audit log** | Every mutating action, attributed and timestamped |
+| **Search & pagination** | By resource, status, date range, and customer name |
+
+## Getting started
 
 ```bash
+git clone https://github.com/joel27darko-netizen/bookit-reservation-system.git
+cd bookit-reservation-system
 pip install -r requirements.txt
-cp .env.example .env        # then open it and set a real SECRET_KEY
-python seed.py               # creates the database and some demo data
+cp .env.example .env        # set a real SECRET_KEY before deploying anywhere
+python seed.py               # creates the DB and demo data
 uvicorn app.main:app --reload
 ```
 
-Then go to `http://localhost:8000`. There are three demo accounts already set up so you can see what each role looks like:
+Open `http://localhost:8000`. Demo accounts are seeded automatically:
 
 | Role | Email | Password |
 |---|---|---|
@@ -43,38 +101,42 @@ Then go to `http://localhost:8000`. There are three demo accounts already set up
 | Staff | staff@bookit.com | staff123 |
 | Customer | customer@bookit.com | customer123 |
 
-## Running the tests
+### Using PostgreSQL instead of SQLite
+
+```
+DATABASE_URL=postgresql+psycopg2://user:password@localhost:5432/bookit
+```
+Install `psycopg2-binary`, then run `alembic upgrade head` instead of relying on dev auto-create.
+
+## Testing
 
 ```bash
 pytest
 ```
 
-There are 42 tests right now, covering the stuff I actually worried about breaking: the double-booking prevention logic, whether each role can see/do what it's supposed to, a couple of real bugs I found and fixed along the way (a filter that used to crash the page, a data leak where customers could see other customers' info), and the login rate limiter.
+**42 tests**, each running against an isolated in-memory database — never touching real data. This isn't a token test file; it's the thing that catches regressions before they ship:
 
-Every test runs against a completely separate in-memory database, so running the suite never touches whatever real data you've got in `bookit.db`.
+- Overlap detection, adjacent (non-conflicting) bookings, capacity limits, operating-hours enforcement, past-date rejection
+- Every protected route checked against every role
+- Two locked-in regression tests for real bugs that happened during development: a filter that 422'd on empty query params, and a cross-customer data leak on the dashboard
+- Rate limiting, auth flows, CSV/PDF export permissions, and the full QR check-in cycle
 
-## How the conflict detection actually works
+## Tech stack
 
-This was the part I spent the most time getting right. A new booking conflicts with an existing one if:
+**Backend:** FastAPI · SQLAlchemy · Pydantic · Alembic · python-jose · passlib/bcrypt
+**Frontend:** Jinja2 · Bootstrap 5 · FullCalendar.js · Chart.js · vanilla JS (no build step, no framework)
+**Testing:** pytest · httpx
+**Reports:** ReportLab (PDF) · native CSV streaming
+**Check-in:** qrcode · Pillow
 
-```
-existing.start_time < new.end_time AND existing.end_time > new.start_time
-```
+## Known limitations
 
-It's a pretty classic overlapping-intervals check, but the important part isn't the formula — it's *where* it runs. The frontend checks availability before you submit, just so you get instant feedback. But the real enforcement happens again on the server, right before the booking actually gets saved. That second check is what actually stops two people from grabbing the same slot if they both hit submit around the same time.
+Being upfront about what this isn't, yet:
 
-## What's still rough around the edges
+- SQLite by default — fine for development, needs PostgreSQL for real concurrent load
+- Rate limiting and the notification outbox are in-memory, so they're per-process — a multi-instance deployment would need Redis behind both
+- Notifications are simulated (visible in an in-app outbox) rather than wired to a real provider — swapping in SES/SendGrid/Twilio is a contained change, not a rearchitecture
 
-Being honest about the current state:
+## License
 
-- It uses SQLite by default, which is fine for development but you'd want Postgres for anything with real concurrent traffic
-- The rate limiter and notification system are both in-memory, which works for a single server but wouldn't survive a multi-instance deployment without changes
-- Email/SMS notifications are simulated (they show up in an in-app "outbox") rather than actually sending anything — hooking up a real provider like SendGrid or Twilio would be the next step if this ever needed to go live for real
-
-## Stack
-
-Python, FastAPI, SQLAlchemy, Alembic, Pydantic, Jinja2, Bootstrap 5, FullCalendar.js, Chart.js, pytest.
-
----
-
-Built as a learning project to get more comfortable with backend architecture, real-time conflict handling, and actually testing the things that matter instead of just hoping they work.
+MIT.
