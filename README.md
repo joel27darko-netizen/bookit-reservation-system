@@ -1,187 +1,80 @@
-# BookIt — Booking & Reservation Management System
+# BookIt
 
-A full-stack reservation platform suitable for hotels, coworking spaces, clinics,
-or meeting rooms. Built with FastAPI + SQLAlchemy + Jinja2 + Bootstrap 5,
-following a clean layered architecture.
+A booking and reservation system I built to work for pretty much any business that manages time slots and physical (or semi-physical) resources — hotel rooms, coworking desks, clinic equipment, meeting rooms, whatever. Instead of building something narrowly tied to "just hotels" or "just clinics," I focused on the actual hard problem underneath all of them: making sure two people can never book the same thing at the same time.
 
-## Design
+It's built with FastAPI on the backend, server-rendered HTML on the frontend (Jinja2 + Bootstrap, no separate JS framework), and it's got a real test suite behind it — not just something that looks nice in a demo.
 
-The UI uses a custom design system (`app/static/css/style.css`) built around one
-idea: **a reservation is a ticket.** Booking rows render as perforated ticket
-stubs — a colored spine for status, a punched divider, a monospace reference
-code — instead of generic dashboard rows. The rest of the app (sidebar nav,
-stat cards, resource tiles, forms, tables) follows the same token system:
-Space Grotesk for headings, Inter for body text, IBM Plex Mono for codes and
-prices, and a cobalt-indigo accent (`#3654FF`) against a clean off-white
-background. Fully responsive down to mobile (sidebar collapses to a horizontal
-tab bar), with visible keyboard focus states and `prefers-reduced-motion` support.
+## Why I built it this way
 
-## Features
+I wanted to actually practice a clean backend architecture instead of just throwing everything into one big file. So the app is split into layers:
 
-- **Auth & RBAC** — JWT in httpOnly cookie, three roles (customer, staff, admin)
-- **Resource management** — rooms, tables, equipment, or services with capacity,
-  location, hourly pricing, and operating hours
-- **Smart booking engine** — real-time availability checks, overlap/conflict
-  detection, creation, rescheduling, cancellation (with a configurable
-  cancellation-notice window)
-- **Dashboard** — occupancy rate, revenue (30-day), upcoming bookings
-- **Calendar view** — FullCalendar.js month/week/day views, color-coded by status
-- **QR check-in** — generates a QR per booking; a "Simulated Scanner" page lets
-  staff paste/type the payload to check guests in
-- **Notifications** — simulated email/SMS outbox (visible in-app, since no real
-  provider is wired up)
-- **Reports** — CSV and PDF export for bookings summary, occupancy, and revenue
-- **Search & filters** — by resource, status, date range, customer
-- **Audit log** — every booking/resource/user mutation is recorded
+- **Routers** just handle the web request/response — they don't know anything about business rules
+- **Services** hold all the actual logic — this is where the booking conflict detection lives, where prices get calculated, where the rules about who can cancel what get enforced
+- **Repositories** are the only part of the app that talk to the database
+- **Models** are just the shape of the data
 
-## Architecture
+It felt like overkill at first for a project this size, but it paid off almost immediately — when I found a bug where customers could see other customers' bookings, I only had to fix it in one place (the service layer), not hunt through a dozen route handlers.
 
-Layered design, each layer only talks to the one below it:
+## What it actually does
 
-```
-Routers (FastAPI endpoints, request/response only)
-   ↓
-Services (business rules: availability engine, pricing, RBAC checks, audit, notifications)
-   ↓
-Repositories (pure SQLAlchemy queries, no business logic)
-   ↓
-Models (SQLAlchemy ORM tables)
+- Three roles — **customer**, **staff**, **admin** — each seeing a different version of the app depending on what they're allowed to do
+- Real-time availability checking, so you can't accidentally double-book a room
+- Booking creation, rescheduling, and cancellation, each with their own rules (like a minimum notice period before you can cancel)
+- A calendar view where you can literally click a day (or a specific time slot) and it takes you straight into a pre-filled booking form
+- QR code check-in — every booking gets a QR code, and there's a simple scanner page for staff to check guests in
+- CSV and PDF exports for reports (bookings, occupancy, revenue)
+- An audit log tracking who did what
+- A dashboard that shows different things depending on who's looking at it — staff and admins see revenue and occupancy, customers just see their own upcoming bookings (nobody else's business is anybody else's business)
+
+## Getting it running
+
+```bash
+pip install -r requirements.txt
+cp .env.example .env        # then open it and set a real SECRET_KEY
+python seed.py               # creates the database and some demo data
+uvicorn app.main:app --reload
 ```
 
-```
-app/
-  main.py            FastAPI app, startup, global error handlers, router wiring
-  config.py          Settings (env-driven)
-  database.py         Engine/session/Base
-  models/             SQLAlchemy models: User, Resource, Booking, AuditLog
-  schemas/             Pydantic request/response validation
-  core/
-    security.py        Password hashing + JWT encode/decode
-    deps.py             get_current_user, require_roles(...) RBAC dependency
-  repositories/        Raw DB queries (UserRepository, ResourceRepository, ...)
-  services/
-    auth_service.py       register/login
-    resource_service.py    resource CRUD + audit
-    booking_service.py     ★ the "smart booking engine": availability, conflicts,
-                             pricing, reschedule/cancel rules
-    dashboard_service.py    occupancy/revenue aggregation, calendar events
-    report_service.py       CSV/PDF generation
-    qr_service.py           QR code generation/decoding
-    notification_service.py simulated email/SMS outbox
-    audit_service.py        audit log writer
-  routers/            Thin endpoints per feature (auth, resources, bookings,
-                       dashboard, reports, checkin, users)
-  templates/           Jinja2 + Bootstrap 5 UI
-  static/              CSS/JS (FullCalendar wiring, availability widget)
-alembic/               Migration environment (autogenerate-ready off app/models)
-seed.py                Demo data: 3 users, 6 resources, sample bookings
+Then go to `http://localhost:8000`. There are three demo accounts already set up so you can see what each role looks like:
+
+| Role | Email | Password |
+|---|---|---|
+| Admin | admin@bookit.com | admin123 |
+| Staff | staff@bookit.com | staff123 |
+| Customer | customer@bookit.com | customer123 |
+
+## Running the tests
+
+```bash
+pytest
 ```
 
-### Why this split works well here
-- The **booking engine's conflict-detection logic** (`BookingService.is_available`,
-  `find_overlapping` in `BookingRepository`) is isolated and unit-testable
-  without touching HTTP concerns.
-- **RBAC** is a single reusable dependency (`require_roles(...)`), not scattered
-  `if role == ...` checks in every route.
-- Swapping SQLite → PostgreSQL is a one-line change in `.env` (`DATABASE_URL`);
-  nothing else in the codebase references the driver.
+There are 42 tests right now, covering the stuff I actually worried about breaking: the double-booking prevention logic, whether each role can see/do what it's supposed to, a couple of real bugs I found and fixed along the way (a filter that used to crash the page, a data leak where customers could see other customers' info), and the login rate limiter.
 
-## Availability / conflict-detection logic
+Every test runs against a completely separate in-memory database, so running the suite never touches whatever real data you've got in `bookit.db`.
 
-A resource is "double-booked" if any **active** booking (`confirmed`,
-`checked_in`, or `completed`) on the same resource overlaps the requested
-`[start, end)` window:
+## How the conflict detection actually works
 
-```python
+This was the part I spent the most time getting right. A new booking conflicts with an existing one if:
+
+```
 existing.start_time < new.end_time AND existing.end_time > new.start_time
 ```
 
-This runs both when the UI asks "is this slot free?" (`GET /resources/{id}/availability`)
-and again authoritatively inside `create_booking`/`reschedule_booking` before
-committing — so even concurrent requests can't create an overlap that slips
-past the UI check.
+It's a pretty classic overlapping-intervals check, but the important part isn't the formula — it's *where* it runs. The frontend checks availability before you submit, just so you get instant feedback. But the real enforcement happens again on the server, right before the booking actually gets saved. That second check is what actually stops two people from grabbing the same slot if they both hit submit around the same time.
 
-## Getting started
+## What's still rough around the edges
 
-```bash
-# 1. Install dependencies
-pip install -r requirements.txt
+Being honest about the current state:
 
-# 2. (Optional) copy and edit environment config
-cp .env.example .env   # set SECRET_KEY, DATABASE_URL, etc.
+- It uses SQLite by default, which is fine for development but you'd want Postgres for anything with real concurrent traffic
+- The rate limiter and notification system are both in-memory, which works for a single server but wouldn't survive a multi-instance deployment without changes
+- Email/SMS notifications are simulated (they show up in an in-app "outbox") rather than actually sending anything — hooking up a real provider like SendGrid or Twilio would be the next step if this ever needed to go live for real
 
-# 3a. Quick start (dev): let the app auto-create tables + seed demo data
-python seed.py
+## Stack
 
-# 3b. Or, for a production-style setup, use Alembic migrations instead:
-alembic revision --autogenerate -m "init"
-alembic upgrade head
+Python, FastAPI, SQLAlchemy, Alembic, Pydantic, Jinja2, Bootstrap 5, FullCalendar.js, Chart.js, pytest.
 
-# 4. Run the server
-uvicorn app.main:app --reload
+---
 
-# 5. Open http://localhost:8000
-```
-
-### Demo accounts (created by seed.py)
-
-| Role     | Email               | Password    |
-|----------|---------------------|-------------|
-| Admin    | admin@bookit.com    | admin123    |
-| Staff    | staff@bookit.com    | staff123    |
-| Customer | customer@bookit.com | customer123 |
-
-### Switching to PostgreSQL
-
-Set in `.env`:
-```
-DATABASE_URL=postgresql+psycopg2://user:password@localhost:5432/bookit
-```
-Install `psycopg2-binary`, then run `alembic upgrade head` instead of relying
-on the dev auto-create-tables behavior.
-
-## Testing
-
-The test suite (`tests/`) covers the areas most likely to break silently:
-booking conflict detection, RBAC enforcement, the filter/pagination
-regression, auth + rate limiting, and reports/notifications/QR check-in.
-Each test runs against an isolated in-memory SQLite database, so it never
-touches your real `bookit.db`.
-
-```bash
-pip install -r requirements.txt   # includes pytest + httpx
-pytest                             # or: pytest -v for per-test output
-```
-
-40 tests, ~30s. Notably: `test_bookings_filters.py` locks in the fix for
-the empty-string `resource_id=""` 422 bug, and `test_rbac.py` locks in
-the customer dashboard/calendar data-scoping fix (no cross-customer
-booking data leakage).
-
-## Key endpoints
-
-| Method | Path                                  | Purpose                              |
-|--------|----------------------------------------|---------------------------------------|
-| POST   | `/register`, `/login`, `/logout`       | Auth                                  |
-| GET    | `/dashboard`                            | Metrics summary                       |
-| GET    | `/calendar`, `/calendar/events`        | FullCalendar page + JSON event feed   |
-| GET/POST | `/resources`, `/resources/create`    | Browse / manage resources             |
-| GET    | `/resources/{id}/availability?day=`    | Real-time slot availability (JSON)    |
-| GET/POST | `/bookings`, `/bookings/create`      | Search/filter + create bookings       |
-| POST   | `/bookings/{id}/cancel`                 | Cancel (enforces notice window)       |
-| POST   | `/bookings/{id}/reschedule`             | Reschedule (re-checks conflicts)      |
-| GET    | `/bookings/{id}/qr`                     | QR code for check-in                  |
-| GET/POST | `/checkin`, `/checkin/scan`          | Simulated QR scanner                  |
-| GET    | `/reports/{type}/csv`, `/reports/{type}/pdf` | Export (`bookings`,`occupancy`,`revenue`) |
-| GET    | `/notifications`                        | Simulated email/SMS outbox            |
-| GET    | `/audit-log`                            | Admin-only action trail               |
-| GET/POST | `/users`, `/users/{id}/role`          | Admin-only role management            |
-
-## Notes / production hardening ideas
-
-- Rotate `SECRET_KEY` and move it out of source control (`.env`, secrets manager)
-- Add rate limiting on `/login` and `/register`
-- Wire `NotificationService` to a real provider (SES/SendGrid, Twilio)
-- Add row-level locking or a unique constraint + retry loop around booking
-  creation for very high-concurrency resources
-- Add pagination to `/bookings` and `/audit-log` for large datasets
+Built as a learning project to get more comfortable with backend architecture, real-time conflict handling, and actually testing the things that matter instead of just hoping they work.
