@@ -4,10 +4,14 @@
 
 Built with FastAPI, SQLAlchemy, and a clean layered architecture — designed to work equally well for hotels, coworking spaces, clinics, or meeting rooms, because the hard part (conflict-free scheduling, role-based access, auditability) is the same problem underneath all of them.
 
-![Python](https://img.shields.io/badge/python-3.11+-blue)
-![FastAPI](https://img.shields.io/badge/FastAPI-0.111-teal)
-![Tests](https://img.shields.io/badge/tests-42%20passing-brightgreen)
-![License](https://img.shields.io/badge/license-MIT-lightgrey)
+<img width="953" height="455" alt="Capture" src="https://github.com/user-attachments/assets/23ceeb2d-46ab-4492-bd96-b5eccd9c4c9a" />
+<img width="954" height="455" alt="Capture0" src="https://github.com/user-attachments/assets/6525c242-7f72-4370-b2d8-ae9d06a1e744" />
+<img width="952" height="453" alt="Capture1" src="https://github.com/user-attachments/assets/9cd9effd-99c5-4a3b-bcc4-3a1830ece85a" />
+<img width="953" height="455" alt="Capture2" src="https://github.com/user-attachments/assets/03773d87-e627-4b6a-a289-36708f384595" />
+<img width="955" height="455" alt="Capture3" src="https://github.com/user-attachments/assets/6a8d786f-57d5-49c2-ad86-cd386a1fb07f" />
+<img width="955" height="454" alt="Capture4" src="https://github.com/user-attachments/assets/f18ff9d1-93cd-4951-9e6e-81ece508312d" />
+<img width="957" height="454" alt="Capture5" src="https://github.com/user-attachments/assets/0250d1ef-caaf-4db2-948b-94518473660d" />
+<img width="955" height="454" alt="Capture6" src="https://github.com/user-attachments/assets/e14bbd9d-760d-468f-a22d-31436648257b" />
 
 ---
 
